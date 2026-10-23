@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IMDb Movie Slots — Tonight's Pick</title>
+  <style>
+    :root {
+      --imdb-gold: #f5c518;
+      --imdb-gold-dark: #d4a713;
+      --bg-base: #0e0e0e;
+      --bg-surface: #181818;
+      --bg-card: #212121;
+      --border: #323232;
+      --text: #ffffff;
+      --text-dim: #9e9e9e;
+      --link: #5799ef;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-base);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    header {
+      width: 100%;
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .logo-badge {
+      background-color: var(--imdb-gold);
+      color: #000;
+      font-weight: 900;
+      font-size: 24px;
+      padding: 2px 10px;
+      border-radius: 4px;
+      letter-spacing: -1px;
+    }
+
+    .brand-text {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .brand-sub {
+      color: var(--imdb-gold);
+      font-weight: 800;
+    }
+
+    .tagline {
+      font-size: 13px;
+      color: var(--text-dim);
+    }
+
+    .app-container {
+      max-width: 920px;
+      width: 100%;
+      padding: 30px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    .slot-settings {
+      width: 100%;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+
+    .setting-item {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .setting-item label {
+      font-size: 12px;
+      text-transform: uppercase;
+      color: var(--text-dim);
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+
+    select {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: #fff;
+      padding: 11px 12px;
+      font-size: 13.5px;
+      outline: none;
+      transition: border-color 0.2s;
+      width: 100%;
+      cursor: pointer;
+    }
+
+    select:focus {
+      border-color: var(--imdb-gold);
+    }
+
+    .slot-machine-box {
+      width: 100%;
+      background: radial-gradient(circle at center, #262626 0%, #161616 100%);
+      border: 2px solid var(--imdb-gold);
+      border-radius: 12px;
+      padding: 30px;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.8), 0 0 15px rgba(245, 197, 24, 0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+      position: relative;
+    }
+
+    .slot-viewport {
+      width: 100%;
+      min-height: 380px;
+      background-color: var(--bg-base);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .slot-spinning-banner {
+      font-size: 26px;
+      font-weight: 800;
+      color: var(--imdb-gold);
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      display: none;
+      animation: pulse 0.15s infinite alternate;
+    }
+
+    @keyframes pulse {
+      0% { transform: scale(0.98); opacity: 0.7; }
+      100% { transform: scale(1.02); opacity: 1; }
+    }
+
+    .slot-idle-text {
+      color: var(--text-dim);
+      font-size: 16px;
+      text-align: center;
+    }
+
+    .result-card {
+      display: none;
+      width: 100%;
+      grid-template-columns: 240px 1fr;
+      gap: 28px;
+      align-items: start;
+    }
+
+    @media(max-width: 680px) {
+      .result-card {
+        grid-template-columns: 1fr;
+        justify-items: center;
+        text-align: center;
+      }
+    }
+
+    .poster-box {
+      width: 240px;
+      height: 340px;
+      background-color: var(--bg-card);
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.6);
+      flex-shrink: 0;
+    }
+
+    .poster-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+
+    .poster-fallback {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-dim);
+      gap: 8px;
+      height: 100%;
+      width: 100%;
+      background: linear-gradient(135deg, #252525 0%, #151515 100%);
+    }
+
+    .movie-details {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      width: 100%;
+    }
+
+    .movie-meta-badge {
+      color: var(--imdb-gold);
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .movie-title {
+      font-size: 28px;
+      font-weight: 800;
+      line-height: 1.2;
+    }
+
+    .movie-submeta {
+      color: var(--text-dim);
+      font-size: 14px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .rating-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin: 6px 0;
+    }
+
+    .star-gold {
+      color: var(--imdb-gold);
+      font-size: 24px;
+    }
+
+    .rating-val {
+      font-size: 24px;
+      font-weight: 800;
+    }
+
+    .rating-max {
+      color: var(--text-dim);
+      font-size: 14px;
+    }
+
+    .rating-votes {
+      color: var(--text-dim);
+      font-size: 13px;
+      margin-left: 8px;
+    }
+
+    .tags-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 4px 0;
+    }
+
+    .genre-tag {
+      background-color: var(--bg-card);
+      border: 1px solid var(--border);
+      color: #ddd;
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 14px;
+    }
+
+    .vibe-tag {
+      background-color: rgba(245, 197, 24, 0.15);
+      border: 1px solid var(--imdb-gold);
+      color: var(--imdb-gold);
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 14px;
+      font-weight: 600;
+    }
+
+    .btn-imdb-page {
+      margin-top: 16px;
+      align-self: flex-start;
+      background-color: rgba(255, 255, 255, 0.08);
+      color: var(--link);
+      text-decoration: none;
+      font-size: 14px;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: 4px;
+      transition: background-color 0.2s;
+    }
+
+    .btn-imdb-page:hover {
+      background-color: rgba(87, 153, 239, 0.18);
+    }
+
+    .btn-spin {
+      background: linear-gradient(180deg, var(--imdb-gold) 0%, var(--imdb-gold-dark) 100%);
+      color: #000;
+      border: none;
+      border-radius: 50px;
+      padding: 16px 56px;
+      font-size: 20px;
+      font-weight: 900;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      cursor: pointer;
+      box-shadow: 0 6px 20px rgba(245, 197, 24, 0.4);
+      transition: transform 0.1s, box-shadow 0.2s;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn-spin:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 26px rgba(245, 197, 24, 0.6);
+    }
+
+    .btn-spin:active {
+      transform: translateY(2px);
+    }
+
+    .btn-spin:disabled {
+      background: #555;
+      color: #888;
+      box-shadow: none;
+      cursor: not-allowed;
+      transform: none;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <a href="#" class="brand">
+      <span class="logo-badge">IMDb</span>
+      <span class="brand-text">Slots <span class="brand-sub">Night</span></span>
+    </a>
+    <span class="tagline">Your movie for tonight in a single click</span>
+  </header>
+
+  <div class="app-container">
+
+    <div class="slot-settings">
+
+      <!-- 1. Mood Presets -->
+      <div class="setting-item">
+        <label for="moodSelect">1. Mood Preset</label>
+        <select id="moodSelect">
+          <option value="ALL"> Any Mood</option>
+          <option value="adrenaline"> Adrenaline Rush (Action / Thriller)</option>
+          <option value="mindbending"> Mind-Bending (Sci-Fi / Mystery)</option>
+          <option value="datenight"> Date Night (Comedy / Romance)</option>
+          <option value="nightmares"> Nightmares (Horror / Mystery)</option>
+          <option value="feelgood"> Feel-Good (Animation / Adventure / Family)</option>
+          <option value="crime"> Crime & Drama (Crime / Drama)</option>
+        </select>
+      </div>
+
+      <!-- 2. Time Available -->
+      <div class="setting-item">
+        <label for="timeSelect">2. Time Available</label>
+        <select id="timeSelect">
+          <option value="ALL"> Any Time</option>
+          <option value="quick"> Quick Watch (&lt; 100 min)</option>
+          <option value="standard"> Standard (100–135 min)</option>
+          <option value="epic"> Long Epic (135–165 min)</option>
+          <option value="marathon"> Marathon (165+ min)</option>
+        </select>
+      </div>
+
+      <!-- 3. Movie Vibe -->
+      <div class="setting-item">
+        <label for="vibeSelect">3. Movie Vibe</label>
+        <select id="vibeSelect">
+          <option value="ALL"> Any Vibe</option>
+          <option value="gem">💎 Hidden Gem (Rating ≥ 7.6, Niche audience)</option>
+          <option value="blockbuster">🏆 All-Time Blockbuster (Rating ≥ 8.5, Popular)</option>
+          <option value="popcorn">🍿 Casual Popcorn (Fun & Mainstream)</option>
+        </select>
+      </div>
+
+    </div>
+
+    <div class="slot-machine-box">
+
+      <div class="slot-viewport" id="slotViewport">
+        <div class="slot-idle-text" id="idleText">
+          Choose your mood & time, then click <strong>SPIN</strong>
+        </div>
+
+        <div class="slot-spinning-banner" id="spinningBanner">
+          🎲 ROLLING MOVIES...
+        </div>
+
+        <div class="result-card" id="resultCard">
+          <div class="poster-box" id="posterBox"></div>
+
+          <div class="movie-details">
+            <span class="movie-meta-badge" id="mBadge">Tonight's Slot Pick</span>
+            <h2 class="movie-title" id="mTitle">Movie Title</h2>
+
+            <div class="movie-submeta">
+              <span id="mYear">2010</span> •
+              <span id="mRuntime">148 min</span>
+            </div>
+
+            <div class="rating-container">
+              <span class="star-gold">★</span>
+              <span class="rating-val" id="mRating">8.8</span>
+              <span class="rating-max">/10</span>
+              <span class="rating-votes" id="mVotes">(2.5M votes)</span>
+            </div>
+
+            <div class="tags-container" id="mTags"></div>
+
+            <a href="#" target="_blank" class="btn-imdb-page" id="mImdbLink">
+              View details on IMDb ↗
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-spin" id="spinBtn">
+        <span>🎰</span> SPIN
+      </button>
+
+    </div>
+
+  </div>
+
+  <script>
+    // Comprehensive IMDb dataset slice (title.basics + title.ratings)
+    const MOVIES_DB = [
+      // --- All-Time Blockbusters & Epics ---
+      { tconst: "tt0111161", primaryTitle: "The Shawshank Redemption", startYear: 1994, runtimeMinutes: 142, genres: ["Drama"], averageRating: 9.3, numVotes: 2950000 },
+      { tconst: "tt0068646", primaryTitle: "The Godfather", startYear: 1972, runtimeMinutes: 175, genres: ["Crime", "Drama"], averageRating: 9.2, numVotes: 2050000 },
+      { tconst: "tt0468569", primaryTitle: "The Dark Knight", startYear: 2008, runtimeMinutes: 152, genres: ["Action", "Crime", "Drama"], averageRating: 9.0, numVotes: 2900000 },
+      { tconst: "tt0110912", primaryTitle: "Pulp Fiction", startYear: 1994, runtimeMinutes: 154, genres: ["Crime", "Drama"], averageRating: 8.9, numVotes: 2250000 },
+      { tconst: "tt0137523", primaryTitle: "Fight Club", startYear: 1999, runtimeMinutes: 139, genres: ["Drama"], averageRating: 8.8, numVotes: 2350000 },
+      { tconst: "tt1375666", primaryTitle: "Inception", startYear: 2010, runtimeMinutes: 148, genres: ["Action", "Adventure", "Sci-Fi"], averageRating: 8.8, numVotes: 2550000 },
+      { tconst: "tt0816692", primaryTitle: "Interstellar", startYear: 2014, runtimeMinutes: 169, genres: ["Adventure", "Drama", "Sci-Fi"], averageRating: 8.7, numVotes: 2150000 },
+      { tconst: "tt0133093", primaryTitle: "The Matrix", startYear: 1999, runtimeMinutes: 136, genres: ["Action", "Sci-Fi"], averageRating: 8.7, numVotes: 2050000 },
+      { tconst: "tt0167260", primaryTitle: "The Lord of the Rings: The Return of the King", startYear: 2003, runtimeMinutes: 201, genres: ["Action", "Adventure", "Drama"], averageRating: 9.0, numVotes: 2000000 },
+      { tconst: "tt15398776", primaryTitle: "Oppenheimer", startYear: 2023, runtimeMinutes: 180, genres: ["Biography", "Drama", "History"], averageRating: 8.8, numVotes: 850000 },
+      { tconst: "tt0109830", primaryTitle: "Forrest Gump", startYear: 1994, runtimeMinutes: 142, genres: ["Drama", "Romance"], averageRating: 8.8, numVotes: 2300000 },
+      { tconst: "tt6751668", primaryTitle: "Parasite", startYear: 2019, runtimeMinutes: 132, genres: ["Drama", "Thriller"], averageRating: 8.5, numVotes: 950000 },
+      { tconst: "tt0088763", primaryTitle: "Back to the Future", startYear: 1985, runtimeMinutes: 116, genres: ["Adventure", "Comedy", "Sci-Fi"], averageRating: 8.5, numVotes: 1350000 },
+      { tconst: "tt0102926", primaryTitle: "The Silence of the Lambs", startYear: 1991, runtimeMinutes: 118, genres: ["Crime", "Drama", "Thriller"], averageRating: 8.6, numVotes: 1550000 },
+      { tconst: "tt0114369", primaryTitle: "Se7en", startYear: 1995, runtimeMinutes: 127, genres: ["Crime", "Drama", "Mystery"], averageRating: 8.6, numVotes: 1800000 },
+      { tconst: "tt0245429", primaryTitle: "Spirited Away", startYear: 2001, runtimeMinutes: 125, genres: ["Animation", "Adventure", "Family"], averageRating: 8.6, numVotes: 850000 },
+      { tconst: "tt0482571", primaryTitle: "The Prestige", startYear: 2006, runtimeMinutes: 130, genres: ["Drama", "Mystery", "Sci-Fi"], averageRating: 8.5, numVotes: 1450000 },
+      { tconst: "tt0172495", primaryTitle: "Gladiator", startYear: 2000, runtimeMinutes: 155, genres: ["Action", "Adventure", "Drama"], averageRating: 8.5, numVotes: 1620000 },
+      { tconst: "tt0099685", primaryTitle: "Goodfellas", startYear: 1990, runtimeMinutes: 145, genres: ["Biography", "Crime", "Drama"], averageRating: 8.7, numVotes: 1280000 },
+      { tconst: "tt0120737", primaryTitle: "The Lord of the Rings: The Fellowship of the Ring", startYear: 2001, runtimeMinutes: 178, genres: ["Action", "Adventure", "Drama"], averageRating: 8.9, numVotes: 2050000 },
+
+      // --- Quick Watch (< 100 min) ---
+      { tconst: "tt0114709", primaryTitle: "Toy Story", startYear: 1995, runtimeMinutes: 81, genres: ["Animation", "Adventure", "Comedy"], averageRating: 8.3, numVotes: 1080000 },
+      { tconst: "tt0093779", primaryTitle: "The Princess Bride", startYear: 1987, runtimeMinutes: 98, genres: ["Adventure", "Comedy", "Family", "Romance"], averageRating: 8.0, numVotes: 450000 },
+      { tconst: "tt0100405", primaryTitle: "Primer", startYear: 2004, runtimeMinutes: 77, genres: ["Drama", "Sci-Fi", "Thriller"], averageRating: 6.8, numVotes: 115000 },
+      { tconst: "tt0384793", primaryTitle: "Before Sunset", startYear: 2004, runtimeMinutes: 80, genres: ["Drama", "Romance"], averageRating: 8.1, numVotes: 280000 },
+      { tconst: "tt0118715", primaryTitle: "The Big Lebowski", startYear: 1998, runtimeMinutes: 117, genres: ["Comedy", "Crime"], averageRating: 8.1, numVotes: 860000 },
+      { tconst: "tt0075148", primaryTitle: "Rocky", startYear: 1976, runtimeMinutes: 120, genres: ["Drama", "Sport"], averageRating: 8.1, numVotes: 620000 },
+      { tconst: "tt0076538", primaryTitle: "Eraserhead", startYear: 1977, runtimeMinutes: 89, genres: ["Horror", "Mystery"], averageRating: 7.3, numVotes: 130000 },
+      { tconst: "tt0407887", primaryTitle: "The Departed", startYear: 2006, runtimeMinutes: 151, genres: ["Crime", "Drama", "Thriller"], averageRating: 8.5, numVotes: 1450000 },
+      { tconst: "tt0113101", primaryTitle: "Before Sunrise", startYear: 1995, runtimeMinutes: 101, genres: ["Drama", "Romance"], averageRating: 8.1, numVotes: 340000 },
+      { tconst: "tt0434409", primaryTitle: "V for Vendetta", startYear: 2005, runtimeMinutes: 132, genres: ["Action", "Drama", "Sci-Fi"], averageRating: 8.2, numVotes: 1160000 },
+      { tconst: "tt1130884", primaryTitle: "Shutter Island", startYear: 2010, runtimeMinutes: 138, genres: ["Mystery", "Thriller"], averageRating: 8.2, numVotes: 1500000 },
+      { tconst: "tt0387564", primaryTitle: "Saw", startYear: 2004, runtimeMinutes: 103, genres: ["Horror", "Mystery", "Thriller"], averageRating: 7.6, numVotes: 460000 },
+      { tconst: "tt0110413", primaryTitle: "Léon: The Professional", startYear: 1994, runtimeMinutes: 110, genres: ["Action", "Crime", "Drama"], averageRating: 8.5, numVotes: 1250000 },
+      { tconst: "tt0081505", primaryTitle: "The Shining", startYear: 1980, runtimeMinutes: 146, genres: ["Drama", "Horror"], averageRating: 8.4, numVotes: 1150000 },
+      { tconst: "tt0078748", primaryTitle: "Alien", startYear: 1979, runtimeMinutes: 117, genres: ["Horror", "Sci-Fi"], averageRating: 8.5, numVotes: 950000 },
+      { tconst: "tt0084787", primaryTitle: "The Thing", startYear: 1982, runtimeMinutes: 109, genres: ["Horror", "Mystery", "Sci-Fi"], averageRating: 8.2, numVotes: 460000 },
+
+      // --- Hidden Gems (High Rating, Niche / Under-the-radar Audience) ---
+      { tconst: "tt1255953", primaryTitle: "Incendies", startYear: 2010, runtimeMinutes: 131, genres: ["Drama", "Mystery"], averageRating: 8.3, numVotes: 215000 },
+      { tconst: "tt0118842", primaryTitle: "Cure", startYear: 1997, runtimeMinutes: 111, genres: ["Crime", "Horror", "Mystery"], averageRating: 7.9, numVotes: 38000 },
+      { tconst: "tt0478311", primaryTitle: "The Fall", startYear: 2006, runtimeMinutes: 117, genres: ["Adventure", "Drama", "Fantasy"], averageRating: 7.8, numVotes: 125000 },
+      { tconst: "tt0379786", primaryTitle: "Serenity", startYear: 2005, runtimeMinutes: 119, genres: ["Action", "Adventure", "Sci-Fi"], averageRating: 7.8, numVotes: 295000 },
+      { tconst: "tt2267998", primaryTitle: "Gone Girl", startYear: 2014, runtimeMinutes: 149, genres: ["Drama", "Mystery", "Thriller"], averageRating: 8.1, numVotes: 1100000 },
+      { tconst: "tt2024544", primaryTitle: "12 Monkeys", startYear: 1995, runtimeMinutes: 129, genres: ["Mystery", "Sci-Fi", "Thriller"], averageRating: 8.0, numVotes: 640000 },
+      { tconst: "tt0317248", primaryTitle: "City of God", startYear: 2002, runtimeMinutes: 130, genres: ["Crime", "Drama"], averageRating: 8.6, numVotes: 820000 },
+      { tconst: "tt0443706", primaryTitle: "Zodiac", startYear: 2007, runtimeMinutes: 157, genres: ["Crime", "Drama", "Mystery"], averageRating: 7.7, numVotes: 600000 },
+      { tconst: "tt1798709", primaryTitle: "Her", startYear: 2013, runtimeMinutes: 126, genres: ["Drama", "Romance", "Sci-Fi"], averageRating: 8.0, numVotes: 710000 },
+      { tconst: "tt1392190", primaryTitle: "Mad Max: Fury Road", startYear: 2015, runtimeMinutes: 120, genres: ["Action", "Adventure", "Sci-Fi"], averageRating: 8.1, numVotes: 1120000 },
+      { tconst: "tt0097165", primaryTitle: "Dead Poets Society", startYear: 1989, runtimeMinutes: 128, genres: ["Comedy", "Drama"], averageRating: 8.1, numVotes: 570000 },
+      { tconst: "tt0338013", primaryTitle: "Eternal Sunshine of the Spotless Mind", startYear: 2004, runtimeMinutes: 108, genres: ["Drama", "Romance", "Sci-Fi"], averageRating: 8.3, numVotes: 1090000 },
+      { tconst: "tt0209144", primaryTitle: "Memento", startYear: 2000, runtimeMinutes: 113, genres: ["Mystery", "Thriller"], averageRating: 8.4, numVotes: 1350000 },
+      { tconst: "tt0120586", primaryTitle: "American History X", startYear: 1998, runtimeMinutes: 119, genres: ["Crime", "Drama"], averageRating: 8.5, numVotes: 1220000 },
+      { tconst: "tt0050083", primaryTitle: "12 Angry Men", startYear: 1957, runtimeMinutes: 96, genres: ["Crime", "Drama"], averageRating: 9.0, numVotes: 890000 },
+      { tconst: "tt2582802", primaryTitle: "Whiplash", startYear: 2014, runtimeMinutes: 106, genres: ["Drama", "Music"], averageRating: 8.5, numVotes: 980000 },
+      { tconst: "tt0364569", primaryTitle: "Oldboy", startYear: 2003, runtimeMinutes: 120, genres: ["Action", "Drama", "Mystery"], averageRating: 8.4, numVotes: 640000 },
+      { tconst: "tt0110357", primaryTitle: "The Lion King", startYear: 1994, runtimeMinutes: 88, genres: ["Animation", "Adventure", "Drama"], averageRating: 8.5, numVotes: 1150000 },
+      { tconst: "tt0095016", primaryTitle: "Die Hard", startYear: 1988, runtimeMinutes: 132, genres: ["Action", "Thriller"], averageRating: 8.2, numVotes: 940000 },
+      { tconst: "tt0253474", primaryTitle: "The Pianist", startYear: 2002, runtimeMinutes: 150, genres: ["Biography", "Drama", "Music"], averageRating: 8.5, numVotes: 940000 },
+
+      // --- Casual Popcorn & Mainstream Entertainment ---
+      { tconst: "tt0381061", primaryTitle: "Casino Royale", startYear: 2006, runtimeMinutes: 144, genres: ["Action", "Adventure", "Thriller"], averageRating: 8.0, numVotes: 710000 },
+      { tconst: "tt0848228", primaryTitle: "The Avengers", startYear: 2012, runtimeMinutes: 143, genres: ["Action", "Sci-Fi"], averageRating: 8.0, numVotes: 1480000 },
+      { tconst: "tt1856101", primaryTitle: "Blade Runner 2049", startYear: 2017, runtimeMinutes: 164, genres: ["Action", "Drama", "Mystery", "Sci-Fi"], averageRating: 8.0, numVotes: 660000 },
+      { tconst: "tt0091763", primaryTitle: "Platoon", startYear: 1986, runtimeMinutes: 120, genres: ["Drama", "War"], averageRating: 8.1, numVotes: 440000 },
+      { tconst: "tt0107290", primaryTitle: "Jurassic Park", startYear: 1993, runtimeMinutes: 127, genres: ["Action", "Adventure", "Sci-Fi"], averageRating: 8.2, numVotes: 1080000 },
+      { tconst: "tt0082971", primaryTitle: "Raiders of the Lost Ark", startYear: 1981, runtimeMinutes: 115, genres: ["Action", "Adventure"], averageRating: 8.4, numVotes: 1040000 },
+      { tconst: "tt0120689", primaryTitle: "The Green Mile", startYear: 1999, runtimeMinutes: 189, genres: ["Crime", "Drama", "Fantasy"], averageRating: 8.6, numVotes: 1400000 },
+      { tconst: "tt0119177", primaryTitle: "Gattaca", startYear: 1997, runtimeMinutes: 106, genres: ["Drama", "Sci-Fi", "Thriller"], averageRating: 7.8, numVotes: 320000 },
+      { tconst: "tt0096283", primaryTitle: "My Neighbor Totoro", startYear: 1988, runtimeMinutes: 86, genres: ["Animation", "Comedy", "Family"], averageRating: 8.1, numVotes: 390000 },
+      { tconst: "tt0112471", primaryTitle: "Before Sunrise", startYear: 1995, runtimeMinutes: 101, genres: ["Drama", "Romance"], averageRating: 8.1, numVotes: 340000 },
+      { tconst: "tt0371724", primaryTitle: "The Hitchhiker's Guide to the Galaxy", startYear: 2005, runtimeMinutes: 109, genres: ["Adventure", "Comedy", "Sci-Fi"], averageRating: 6.7, numVotes: 210000 },
+      { tconst: "tt0107977", primaryTitle: "Groundhog Day", startYear: 1993, runtimeMinutes: 101, genres: ["Comedy", "Fantasy", "Romance"], averageRating: 8.0, numVotes: 680000 },
+      { tconst: "tt0119217", primaryTitle: "Good Will Hunting", startYear: 1997, runtimeMinutes: 126, genres: ["Drama", "Romance"], averageRating: 8.3, numVotes: 1100000 },
+      { tconst: "tt0071562", primaryTitle: "The Godfather Part II", startYear: 1974, runtimeMinutes: 202, genres: ["Crime", "Drama"], averageRating: 9.0, numVotes: 1400000 }
+    ];
+
+    // UI elements
+    const moodSelect = document.getElementById("moodSelect");
+    const timeSelect = document.getElementById("timeSelect");
+    const vibeSelect = document.getElementById("vibeSelect");
+
+    const spinBtn = document.getElementById("spinBtn");
+    const idleText = document.getElementById("idleText");
+    const spinningBanner = document.getElementById("spinningBanner");
+    const resultCard = document.getElementById("resultCard");
+
+    const posterBox = document.getElementById("posterBox");
+    const mBadge = document.getElementById("mBadge");
+    const mTitle = document.getElementById("mTitle");
+    const mYear = document.getElementById("mYear");
+    const mRuntime = document.getElementById("mRuntime");
+    const mRating = document.getElementById("mRating");
+    const mVotes = document.getElementById("mVotes");
+    const mTags = document.getElementById("mTags");
+    const mImdbLink = document.getElementById("mImdbLink");
+
+    function formatNumber(num) {
+      if (num >= 1000000) return (num / 1000000).toFixed(1) + "M";
+      if (num >= 1000) return (num / 1000).toFixed(0) + "K";
+      return num;
+    }
+
+    // Filter matching logic
+    function matchesMood(genres, mood) {
+      if (mood === "ALL") return true;
+      if (mood === "adrenaline") return genres.includes("Action") || genres.includes("Thriller");
+      if (mood === "mindbending") return genres.includes("Sci-Fi") || genres.includes("Mystery");
+      if (mood === "datenight") return genres.includes("Comedy") || genres.includes("Romance");
+      if (mood === "nightmares") return genres.includes("Horror") || genres.includes("Mystery");
+      if (mood === "feelgood") return genres.includes("Animation") || genres.includes("Family") || genres.includes("Adventure");
+      if (mood === "crime") return genres.includes("Crime") || genres.includes("Drama");
+      return true;
+    }
+
+    function matchesTime(runtime, time) {
+      if (time === "ALL") return true;
+      if (time === "quick") return runtime < 100;
+      if (time === "standard") return runtime >= 100 && runtime <= 135;
+      if (time === "epic") return runtime > 135 && runtime <= 165;
+      if (time === "marathon") return runtime > 165;
+      return true;
+    }
+
+    function matchesVibe(rating, votes, vibe) {
+      if (vibe === "ALL") return true;
+      if (vibe === "gem") return rating >= 7.6 && votes <= 700000;
+      if (vibe === "blockbuster") return rating >= 8.5 && votes >= 800000;
+      if (vibe === "popcorn") return rating >= 6.5 && rating <= 8.3;
+      return true;
+    }
+
+    function getFilteredPool() {
+      const mood = moodSelect.value;
+      const time = timeSelect.value;
+      const vibe = vibeSelect.value;
+
+      return MOVIES_DB.filter(m =>
+        matchesMood(m.genres, mood) &&
+        matchesTime(m.runtimeMinutes, time) &&
+        matchesVibe(m.averageRating, m.numVotes, vibe)
+      );
+    }
+
+    function getVibeBadge(m) {
+      if (m.averageRating >= 7.6 && m.numVotes <= 700000) return "💎 Hidden Gem";
+      if (m.averageRating >= 8.5 && m.numVotes >= 800000) return "🏆 All-Time Classic";
+      return "🍿 Popcorn Pick";
+    }
+
+    function loadPoster(tconst, title) {
+      posterBox.innerHTML = "";
+      const img = new Image();
+      img.src = `https://images.metahub.space/poster/medium/${tconst}/img`;
+      img.alt = title;
+
+      img.onload = () => {
+        posterBox.appendChild(img);
+      };
+
+      img.onerror = () => {
+        posterBox.innerHTML = `
+          <div class="poster-fallback">
+            <span style="font-size: 40px; color: var(--imdb-gold);">🎬</span>
+            <span style="font-size: 13px; font-weight: 600; padding: 0 10px; text-align: center;">${title}</span>
+          </div>
+        `;
+      };
+    }
+
+    function displayMovie(m, isFallback = false) {
+      loadPoster(m.tconst, m.primaryTitle);
+
+      if (isFallback) {
+        mBadge.textContent = "Closest Match (No exact match for all 3 criteria)";
+        mBadge.style.color = "#ffa726";
+      } else {
+        mBadge.textContent = "Tonight's Slot Pick";
+        mBadge.style.color = "var(--imdb-gold)";
+      }
+
+      mTitle.textContent = m.primaryTitle;
+      mYear.textContent = m.startYear;
+      mRuntime.textContent = `${m.runtimeMinutes} min`;
+      mRating.textContent = m.averageRating.toFixed(1);
+      mVotes.textContent = `(${formatNumber(m.numVotes)} votes)`;
+
+      const vibeLabel = getVibeBadge(m);
+      const genreTags = m.genres.map(g => `<span class="genre-tag">${g}</span>`).join("");
+      const vibeTag = `<span class="vibe-tag">${vibeLabel}</span>`;
+
+      mTags.innerHTML = `${vibeTag} ${genreTags}`;
+      mImdbLink.href = `https://www.imdb.com/title/${m.tconst}/`;
+    }
+
+    // Spin mechanism with intelligent fallback
+    spinBtn.addEventListener("click", () => {
+      let pool = getFilteredPool();
+      let isFallback = false;
+
+      // Fallback 1: Keep mood and time, relax vibe
+      if (pool.length === 0) {
+        const mood = moodSelect.value;
+        const time = timeSelect.value;
+        pool = MOVIES_DB.filter(m => matchesMood(m.genres, mood) && matchesTime(m.runtimeMinutes, time));
+        isFallback = true;
+      }
+
+      // Fallback 2: Keep only mood
+      if (pool.length === 0) {
+        const mood = moodSelect.value;
+        pool = MOVIES_DB.filter(m => matchesMood(m.genres, mood));
+        isFallback = true;
+      }
+
+      // Fallback 3: Safety net - full catalog
+      if (pool.length === 0) {
+        pool = MOVIES_DB;
+        isFallback = true;
+      }
+
+      spinBtn.disabled = true;
+      idleText.style.display = "none";
+      resultCard.style.display = "none";
+      spinningBanner.style.display = "block";
+
+      let counter = 0;
+      const interval = setInterval(() => {
+        const randomTemp = pool[Math.floor(Math.random() * pool.length)];
+        spinningBanner.textContent = `🎲 ${randomTemp.primaryTitle.toUpperCase()}...`;
+        counter++;
+
+        if (counter > 12) {
+          clearInterval(interval);
+          const finalChoice = pool[Math.floor(Math.random() * pool.length)];
+
+          spinningBanner.style.display = "none";
+          displayMovie(finalChoice, isFallback);
+          resultCard.style.display = "grid";
+          spinBtn.disabled = false;
+        }
+      }, 80);
+    });
+  </script>
+</body>
+</html>

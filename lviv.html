@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html lang="uk" class="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LeoSadok — Прозора черга до дошкілля Львова</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50: '#eef2ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
+  <!-- PapaParse для парсингу CSV -->
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-slate-800 dark:text-slate-100 transition-colors duration-200 antialiased min-h-screen flex flex-col">
+
+  <!-- Навігаційна панель -->
+  <header class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+
+      <!-- Логотип та слоган ЛеоСадок -->
+      <div class="flex items-center space-x-3">
+        <span class="bg-brand-600 text-white p-2.5 rounded-xl flex items-center justify-center shadow-sm">
+          <i data-lucide="baby" class="w-5 h-5"></i>
+        </span>
+        <div>
+          <div class="flex items-center space-x-2">
+            <h1 class="text-base sm:text-lg font-bold leading-tight tracking-tight">ЛеоСадок</h1>
+            <span class="bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-400 text-[10px] font-semibold px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">Львів OpenData</span>
+          </div>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Прозора черга до дошкілля Львова</p>
+        </div>
+      </div>
+
+      <!-- Дії користувача -->
+      <div class="flex items-center space-x-2 sm:space-x-3">
+        <a href="tel:1580" title="Гаряча лінія міста Львова" class="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-semibold text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 border border-rose-200 dark:border-rose-800 transition">
+          <i data-lucide="phone-call" class="w-4 h-4"></i>
+          <span class="hidden md:inline">Гаряча лінія:</span>
+          <span>1580</span>
+        </a>
+
+        <button id="openGuideBtn" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition">
+          <i data-lucide="help-circle" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Правила зарахування</span>
+        </button>
+
+        <button id="openCabinetBtn" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-brand-600 hover:bg-brand-700 text-white shadow-sm transition">
+          <i data-lucide="user-check" class="w-4 h-4"></i>
+          <span class="hidden sm:inline">Кабінет заявки</span>
+        </button>
+
+        <button id="themeToggleBtn" aria-label="Змінити тему" class="p-2 rounded-lg bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600 transition">
+          <i data-lucide="moon" id="themeIcon" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Головний екран -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6 flex-1 w-full">
+
+    <!-- KPI Картки -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm transition">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Усього зареєстрованих заяв</p>
+        <h3 id="statTotal" class="text-2xl font-black text-slate-900 dark:text-white mt-1.5">-</h3>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">у поточній вибірці</p>
+      </div>
+      <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm transition">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Пільгові звернення</p>
+        <h3 id="statBenefits" class="text-2xl font-black text-brand-600 dark:text-brand-400 mt-1.5">-</h3>
+        <p id="statBenefitPercent" class="text-xs text-slate-400 dark:text-slate-500 mt-1">0% від загальної кількості</p>
+      </div>
+      <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm transition">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Успішно зараховано</p>
+        <h3 id="statEnrolled" class="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1.5">-</h3>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">отримали направлення</p>
+      </div>
+      <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm transition">
+        <p class="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">Першочерговий вибір закладу</p>
+        <h3 id="statPriorityOne" class="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1.5">-</h3>
+        <p class="text-xs text-slate-400 dark:text-slate-500 mt-1">основний заклад для батьків</p>
+      </div>
+    </div>
+
+    <!-- Графіки -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm transition">
+        <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100 mb-4">Розподіл за віковими групами</h2>
+        <div class="h-64 relative">
+          <canvas id="ageGroupChart"></canvas>
+        </div>
+      </div>
+      <div class="bg-white dark:bg-slate-800 p-5 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm transition">
+        <h2 class="text-sm font-bold text-slate-800 dark:text-slate-100 mb-4">Динаміка подання заяв за роками</h2>
+        <div class="h-64 relative">
+          <canvas id="timelineChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <!-- Таблиця та фільтрація -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-hidden transition">
+
+      <!-- Панель фільтрів -->
+      <div class="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col md:flex-row gap-3 items-center justify-between">
+
+        <div class="w-full md:w-72 relative">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+          <input
+            type="text"
+            id="searchInput"
+            placeholder="Пошук за кодом або садочком..."
+            class="w-full pl-9 pr-4 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-500 transition"
+          />
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          <select id="statusFilter" class="px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-brand-500 transition">
+            <option value="all">Усі статуси</option>
+          </select>
+
+          <select id="ageGroupFilter" class="px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-brand-500 transition">
+            <option value="all">Усі вікові групи</option>
+          </select>
+
+          <select id="benefitFilter" class="px-3 py-2 border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-900 rounded-xl text-xs sm:text-sm focus:ring-2 focus:ring-brand-500 transition">
+            <option value="all">Пільги: Усі</option>
+            <option value="Так">Пільга: Є</option>
+            <option value="Ні">Пільга: Немає</option>
+          </select>
+
+          <!-- Імпорт реального CSV -->
+          <label class="cursor-pointer px-3 py-2 border border-dashed border-slate-300 dark:border-slate-600 bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700 rounded-xl text-xs font-semibold text-slate-700 dark:text-slate-300 transition flex items-center space-x-1">
+            <i data-lucide="file-up" class="w-3.5 h-3.5"></i>
+            <span>Імпорт line.csv</span>
+            <input type="file" id="csvFileInput" accept=".csv, .txt" class="hidden" />
+          </label>
+        </div>
+      </div>
+
+      <!-- Таблиця списку -->
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse text-sm">
+          <thead>
+            <tr class="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 font-semibold text-xs uppercase tracking-wider">
+              <th class="py-3 px-4">Код заявки</th>
+              <th class="py-3 px-4">Заклад освіти та код</th>
+              <th class="py-3 px-4 text-center">Пріоритет</th>
+              <th class="py-3 px-4 text-center">Номер у черзі</th>
+              <th class="py-3 px-4">Вікова категорія та рік</th>
+              <th class="py-3 px-4 text-center">Стать</th>
+              <th class="py-3 px-4 text-center">Пільга</th>
+              <th class="py-3 px-4">Дата подання</th>
+              <th class="py-3 px-4 text-center">Статус</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody" class="divide-y divide-slate-100 dark:divide-slate-700/50 text-slate-700 dark:text-slate-200 text-xs sm:text-sm">
+            <tr>
+              <td colspan="9" class="py-8 text-center text-slate-400">Завантаження записів...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Пагінація -->
+      <div class="p-4 border-t border-slate-200 dark:border-slate-700 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+        <span id="pageInfo">0-0 з 0</span>
+        <div class="flex space-x-1">
+          <button id="prevBtn" class="px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 transition">Попередня</button>
+          <button id="nextBtn" class="px-3 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 disabled:opacity-40 transition">Наступна</button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- МОДАЛЬНЕ ВІКНО: ПРАВИЛА ЗАРАХУВАННЯ -->
+  <div id="guideModal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-xl w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 relative max-h-[90vh] overflow-y-auto">
+      <button id="closeGuideBtn" class="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center space-x-3 mb-4">
+        <span class="p-2 bg-brand-100 dark:bg-brand-950 text-brand-600 dark:text-brand-400 rounded-xl">
+          <i data-lucide="book-open" class="w-6 h-6"></i>
+        </span>
+        <h3 class="text-lg font-bold text-slate-900 dark:text-white">Правила формування черги до садочків</h3>
+      </div>
+
+      <div class="space-y-3.5 text-sm text-slate-600 dark:text-slate-300">
+        <div class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
+          <h4 class="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-1">Пріоритетність закладів</h4>
+          <p class="text-xs leading-relaxed">Батьки можуть обрати до трьох садочків. Зарахування дитини відбувається насамперед до закладу з першим пріоритетом. Якщо вільних місць недостатньо, автоматично залучаються заявки другого, а потім і третього пріоритету.</p>
+        </div>
+
+        <div class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
+          <h4 class="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-1">Вікові групи</h4>
+          <ul class="text-xs space-y-1 list-disc list-inside">
+            <li><b>Ранній вік:</b> діти віком 2–3 роки</li>
+            <li><b>Молодша група:</b> діти віком 3–4 роки</li>
+            <li><b>Середня група:</b> діти віком 4–5 років</li>
+            <li><b>Старша група:</b> діти віком 5–6 років</li>
+          </ul>
+        </div>
+
+        <div class="p-3 bg-slate-50 dark:bg-slate-900/50 rounded-xl border border-slate-200 dark:border-slate-700">
+          <h4 class="font-bold text-slate-900 dark:text-white text-xs uppercase tracking-wider mb-1">Пільгові категорії</h4>
+          <p class="text-xs leading-relaxed">Заявки з офіційно підтвердженим правом на пільгу розглядаються першочергово в межах відповідної вікової категорії садочка.</p>
+        </div>
+      </div>
+
+      <div class="mt-6 flex justify-end">
+        <button id="okGuideBtn" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-xl text-sm font-semibold transition">Зрозуміло</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- МОДАЛЬНЕ ВІКНО: КАБІНЕТ ЗАЯВКИ -->
+  <div id="cabinetModal" class="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 relative max-h-[90vh] overflow-y-auto">
+      <button id="closeCabinetBtn" class="absolute right-4 top-4 text-slate-400 hover:text-slate-600 dark:hover:text-white">
+        <i data-lucide="x" class="w-5 h-5"></i>
+      </button>
+
+      <div class="flex items-center space-x-3 mb-5">
+        <span class="p-2.5 bg-brand-100 dark:bg-brand-950 text-brand-600 dark:text-brand-400 rounded-xl">
+          <i data-lucide="user-check" class="w-6 h-6"></i>
+        </span>
+        <div>
+          <h3 class="text-lg font-bold text-slate-900 dark:text-white">Моніторинг черги дитини</h3>
+          <p class="text-xs text-slate-500 dark:text-slate-400">Швидка перевірка номера та статусу за реєстраційним номером</p>
+        </div>
+      </div>
+
+      <!-- Пошук та закріплення заявки -->
+      <form id="childLinkCard" class="space-y-3 bg-slate-50 dark:bg-slate-900/50 p-4 rounded-xl border border-slate-200 dark:border-slate-700 mb-5">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">Реєстраційний номер заявки</label>
+          <div class="flex gap-2">
+            <input type="text" id="trackUidInput" required placeholder="наприклад: LV-2024-0015" class="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded-lg text-sm focus:ring-2 focus:ring-brand-500 focus:outline-none" />
+            <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold whitespace-nowrap transition">
+              Знайти
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">Введіть номер для закріплення дитини в швидкому доступі</p>
+        </div>
+      </form>
+
+      <!-- Список відстеження -->
+      <div class="space-y-3">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 dark:text-slate-400">Закріплені звернення</h4>
+        <div id="trackedList" class="space-y-3"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    let ageGroupChartInstance = null;
+    let timelineChartInstance = null;
+
+    const defaultData = [
+      // 2020 рік (5 записів)
+      { uid: "LV-2020-0011", receivedDate: "2020-02-10", priority: "1", number: 1, gender: 1, birthDate: 2018, ageGroup: "Старша група", benefitType: "Так", institutionName: "ЗДО №42", institutionId: "20821034", dateProvided: 2021, status: "Зараховано" },
+      { uid: "LV-2020-0045", receivedDate: "2020-05-18", priority: "2", number: 3, gender: 2, birthDate: 2018, ageGroup: "Старша група", benefitType: "Ні", institutionName: "ЗДО №1", institutionId: "20821001", dateProvided: 2021, status: "Зараховано" },
+      { uid: "LV-2020-0089", receivedDate: "2020-07-22", priority: "1", number: 2, gender: 1, birthDate: 2018, ageGroup: "Старша група", benefitType: "Ні", institutionName: "ЗДО №135", institutionId: "20821135", dateProvided: 2021, status: "Зараховано" },
+      { uid: "LV-2020-0112", receivedDate: "2020-09-14", priority: "1", number: 1, gender: 2, birthDate: 2018, ageGroup: "Старша група", benefitType: "Так", institutionName: "ЗДО №89", institutionId: "20821089", dateProvided: 2021, status: "Зараховано" },
+      { uid: "LV-2020-0156", receivedDate: "2020-11-03", priority: "3", number: 9, gender: 1, birthDate: 2018, ageGroup: "Старша група", benefitType: "Ні", institutionName: "ЗДО №165", institutionId: "20821165", dateProvided: 0, status: "Не зараховано" },
+
+      // 2021 рік (6 записів)
+      { uid: "LV-2021-0012", receivedDate: "2021-02-14", priority: "1", number: 1, gender: 1, birthDate: 2019, ageGroup: "Старша група", benefitType: "Так", institutionName: "ЗДО №42", institutionId: "20821034", dateProvided: 2022, status: "Зараховано" },
+      { uid: "LV-2021-0089", receivedDate: "2021-06-20", priority: "2", number: 4, gender: 2, birthDate: 2019, ageGroup: "Старша група", benefitType: "Ні", institutionName: "ЗДО №1", institutionId: "20821001", dateProvided: 2022, status: "Зараховано" },
+      { uid: "LV-2021-0134", receivedDate: "2021-08-05", priority: "1", number: 2, gender: 1, birthDate: 2019, ageGroup: "Старша група", benefitType: "Так", institutionName: "ЗДО №52", institutionId: "20821052", dateProvided: 2022, status: "Зараховано" },
+      { uid: "LV-2021-0205", receivedDate: "2021-09-19", priority: "1", number: 7, gender: 2, birthDate: 2019, ageGroup: "Старша група", benefitType: "Ні", institutionName: "ЗДО №171", institutionId: "20821171", dateProvided: 2022, status: "Зараховано" },
+      { uid: "LV-2021-0288", receivedDate: "2021-10-30", priority: "3", number: 15, gender: 1, birthDate: 2019, ageGroup: "Старша група", benefitType: "Ні", institutionName: "ЗДО №89", institutionId: "20821089", dateProvided: 0, status: "Не зараховано" },
+      { uid: "LV-2021-0341", receivedDate: "2021-12-12", priority: "1", number: 3, gender: 2, birthDate: 2019, ageGroup: "Старша група", benefitType: "Так", institutionName: "ЗДО №183", institutionId: "20821183", dateProvided: 2022, status: "Зараховано" },
+
+      // 2022 рік (7 записів)
+      { uid: "LV-2022-0104", receivedDate: "2022-03-11", priority: "1", number: 3, gender: 1, birthDate: 2020, ageGroup: "Середня група", benefitType: "Так", institutionName: "ЗДО №135", institutionId: "20821135", dateProvided: 2023, status: "Зараховано" },
+      { uid: "LV-2022-0215", receivedDate: "2022-05-18", priority: "1", number: 8, gender: 2, birthDate: 2020, ageGroup: "Середня група", benefitType: "Ні", institutionName: "ЗДО №42", institutionId: "20821034", dateProvided: 2023, status: "Зараховано" },
+      { uid: "LV-2022-0341", receivedDate: "2022-07-09", priority: "3", number: 14, gender: 1, birthDate: 2020, ageGroup: "Середня група", benefitType: "Ні", institutionName: "ЗДО №89", institutionId: "20821089", dateProvided: 0, status: "Не зараховано" },
+      { uid: "LV-2022-0402", receivedDate: "2022-08-25", priority: "1", number: 2, gender: 2, birthDate: 2020, ageGroup: "Середня група", benefitType: "Так", institutionName: "ЗДО №165", institutionId: "20821165", dateProvided: 2023, status: "Зараховано" },
+      { uid: "LV-2022-0489", receivedDate: "2022-09-17", priority: "2", number: 11, gender: 1, birthDate: 2020, ageGroup: "Середня група", benefitType: "Ні", institutionName: "ЗДО №1", institutionId: "20821001", dateProvided: 2023, status: "Зараховано" },
+      { uid: "LV-2022-0544", receivedDate: "2022-10-29", priority: "1", number: 5, gender: 2, birthDate: 2020, ageGroup: "Середня група", benefitType: "Ні", institutionName: "ЗДО №52", institutionId: "20821052", dateProvided: 2023, status: "Зараховано" },
+      { uid: "LV-2022-0610", receivedDate: "2022-11-20", priority: "1", number: 1, gender: 1, birthDate: 2020, ageGroup: "Середня група", benefitType: "Так", institutionName: "ЗДО №183", institutionId: "20821183", dateProvided: 2023, status: "Зараховано" },
+
+      // 2023 рік (9 записів)
+      { uid: "LV-2023-0108", receivedDate: "2023-01-25", priority: "1", number: 2, gender: 2, birthDate: 2021, ageGroup: "Молодша група", benefitType: "Так", institutionName: "ЗДО №165", institutionId: "20821165", dateProvided: 2024, status: "Претендент на зарахування" },
+      { uid: "LV-2023-0240", receivedDate: "2023-04-12", priority: "1", number: 5, gender: 1, birthDate: 2021, ageGroup: "Молодша група", benefitType: "Ні", institutionName: "ЗДО №135", institutionId: "20821135", dateProvided: 2024, status: "Претендент на зарахування" },
+      { uid: "LV-2023-0419", receivedDate: "2023-06-03", priority: "2", number: 11, gender: 2, birthDate: 2021, ageGroup: "Молодша група", benefitType: "Ні", institutionName: "ЗДО №52", institutionId: "20821052", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2023-0588", receivedDate: "2023-08-29", priority: "1", number: 1, gender: 1, birthDate: 2021, ageGroup: "Молодша група", benefitType: "Так", institutionName: "ЗДО №1", institutionId: "20821001", dateProvided: 2024, status: "Претендент на зарахування" },
+      { uid: "LV-2023-0712", receivedDate: "2023-09-14", priority: "1", number: 6, gender: 2, birthDate: 2021, ageGroup: "Молодша група", benefitType: "Ні", institutionName: "ЗДО №42", institutionId: "20821034", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2023-0792", receivedDate: "2023-11-15", priority: "2", number: 18, gender: 2, birthDate: 2021, ageGroup: "Молодша група", benefitType: "Ні", institutionName: "ЗДО №171", institutionId: "20821171", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2023-0855", receivedDate: "2023-11-28", priority: "1", number: 3, gender: 1, birthDate: 2021, ageGroup: "Молодша група", benefitType: "Так", institutionName: "ЗДО №89", institutionId: "20821089", dateProvided: 2024, status: "Претендент на зарахування" },
+      { uid: "LV-2023-0914", receivedDate: "2023-12-10", priority: "3", number: 24, gender: 2, birthDate: 2021, ageGroup: "Молодша група", benefitType: "Ні", institutionName: "ЗДО №183", institutionId: "20821183", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2023-0970", receivedDate: "2023-12-22", priority: "1", number: 4, gender: 1, birthDate: 2021, ageGroup: "Молодша група", benefitType: "Так", institutionName: "ЗДО №135", institutionId: "20821135", dateProvided: 0, status: "У черзі" },
+
+      // 2024 рік (11 записів)
+      { uid: "LV-2024-0015", receivedDate: "2024-01-10", priority: "1", number: 2, gender: 1, birthDate: 2022, ageGroup: "Група раннього віку", benefitType: "Так", institutionName: "ЗДО №42", institutionId: "20821034", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2024-0092", receivedDate: "2024-02-19", priority: "1", number: 7, gender: 2, birthDate: 2022, ageGroup: "Група раннього віку", benefitType: "Ні", institutionName: "ЗДО №42", institutionId: "20821034", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2024-0145", receivedDate: "2024-03-22", priority: "2", number: 12, gender: 1, birthDate: 2022, ageGroup: "Група раннього віку", benefitType: "Ні", institutionName: "ЗДО №135", institutionId: "20821135", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2024-0210", receivedDate: "2024-05-14", priority: "1", number: 3, gender: 2, birthDate: 2022, ageGroup: "Група раннього віку", benefitType: "Так", institutionName: "ЗДО №89", institutionId: "20821089", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2024-0290", receivedDate: "2024-06-18", priority: "1", number: 1, gender: 1, birthDate: 2022, ageGroup: "Група раннього віку", benefitType: "Так", institutionName: "ЗДО №1", institutionId: "20821001", dateProvided: 2025, status: "Претендент на зарахування" },
+      { uid: "LV-2024-0355", receivedDate: "2024-07-08", priority: "3", number: 22, gender: 1, birthDate: 2022, ageGroup: "Група раннього віку", benefitType: "Ні", institutionName: "ЗДО №165", institutionId: "20821165", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2024-0412", receivedDate: "2024-08-30", priority: "1", number: 9, gender: 2, birthDate: 2022, ageGroup: "Група раннього віку", benefitType: "Ні", institutionName: "ЗДО №52", institutionId: "20821052", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2024-0480", receivedDate: "2024-09-12", priority: "2", number: 15, gender: 1, birthDate: 2022, ageGroup: "Група раннього віку", benefitType: "Ні", institutionName: "ЗДО №171", institutionId: "20821171", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2024-0530", receivedDate: "2024-10-05", priority: "1", number: 4, gender: 2, birthDate: 2022, ageGroup: "Група раннього віку", benefitType: "Так", institutionName: "ЗДО №183", institutionId: "20821183", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2024-0601", receivedDate: "2024-11-19", priority: "1", number: 10, gender: 1, birthDate: 2022, ageGroup: "Група раннього віку", benefitType: "Ні", institutionName: "ЗДО №135", institutionId: "20821135", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2024-0675", receivedDate: "2024-12-08", priority: "2", number: 17, gender: 2, birthDate: 2022, ageGroup: "Група раннього віку", benefitType: "Ні", institutionName: "ЗДО №42", institutionId: "20821034", dateProvided: 0, status: "У черзі" },
+
+      // 2025 рік (5 записів)
+      { uid: "LV-2025-0024", receivedDate: "2025-01-15", priority: "1", number: 1, gender: 2, birthDate: 2023, ageGroup: "Група раннього віку", benefitType: "Так", institutionName: "ЗДО №1", institutionId: "20821001", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2025-0105", receivedDate: "2025-03-04", priority: "1", number: 6, gender: 1, birthDate: 2023, ageGroup: "Група раннього віку", benefitType: "Ні", institutionName: "ЗДО №89", institutionId: "20821089", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2025-0210", receivedDate: "2025-05-20", priority: "2", number: 14, gender: 2, birthDate: 2023, ageGroup: "Група раннього віку", benefitType: "Ні", institutionName: "ЗДО №165", institutionId: "20821165", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2025-0318", receivedDate: "2025-08-11", priority: "1", number: 3, gender: 1, birthDate: 2023, ageGroup: "Група раннього віку", benefitType: "Так", institutionName: "ЗДО №135", institutionId: "20821135", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2025-0450", receivedDate: "2025-11-02", priority: "1", number: 8, gender: 2, birthDate: 2023, ageGroup: "Група раннього віку", benefitType: "Ні", institutionName: "ЗДО №52", institutionId: "20821052", dateProvided: 0, status: "У черзі" },
+
+      // 2026 рік (2 записи)
+      { uid: "LV-2026-0012", receivedDate: "2026-01-20", priority: "1", number: 1, gender: 1, birthDate: 2024, ageGroup: "Група раннього віку", benefitType: "Так", institutionName: "ЗДО №42", institutionId: "20821034", dateProvided: 0, status: "У черзі" },
+      { uid: "LV-2026-0088", receivedDate: "2026-04-15", priority: "1", number: 5, gender: 2, birthDate: 2024, ageGroup: "Група раннього віку", benefitType: "Ні", institutionName: "ЗДО №183", institutionId: "20821183", dateProvided: 0, status: "У черзі" }
+    ];
+
+    let dataset = [];
+    let filteredData = [];
+    let currentPage = 1;
+    const pageSize = 8;
+
+    const htmlEl = document.documentElement;
+    const themeToggleBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeIcon');
+
+    function applyTheme(isDark) {
+      if (isDark) {
+        htmlEl.classList.add('dark');
+        themeIcon.setAttribute('data-lucide', 'sun');
+        localStorage.setItem('theme', 'dark');
+      } else {
+        htmlEl.classList.remove('dark');
+        themeIcon.setAttribute('data-lucide', 'moon');
+        localStorage.setItem('theme', 'light');
+      }
+      if (window.lucide) lucide.createIcons();
+      updateChartColors();
+    }
+
+    function updateChartColors() {
+      if (ageGroupChartInstance && timelineChartInstance) {
+        renderCharts();
+      }
+    }
+
+    function normalizeRow(row, index) {
+      const keys = Object.keys(row);
+      const findKey = (candidates) => keys.find(k => candidates.some(c => k.toLowerCase().trim() === c.toLowerCase()));
+
+      const uidKey = findKey(['uid', 'ідентифікатор', 'id', 'номер заявки']) || keys[0];
+      const recDateKey = findKey(['receiveddate', 'дата подання', 'date', 'received_date']) || keys[1];
+      const prioKey = findKey(['priority', 'пріоритет']) || keys[2];
+      const numKey = findKey(['number', 'номер у черзі', 'черга']) || keys[3];
+      const genderKey = findKey(['gender', 'стать']) || keys[4];
+      const birthKey = findKey(['birthdate', 'дата народження дитини', 'рік народження']) || keys[5];
+      const ageGroupKey = findKey(['agegroup', 'вікова група', 'група']) || keys[6];
+      const benefitKey = findKey(['benefittype', 'наявність пільг', 'пільга']) || keys[7];
+      const instNameKey = findKey(['institutionname', 'назва закладу', 'заклад', 'здо']) || keys[8];
+      const instIdKey = findKey(['institutionid', 'ідентифікатор закладу', 'єдрпоу']) || keys[9];
+      const dateProvKey = findKey(['dateprovided', 'рік зарахування']) || keys[10];
+      const statusKey = findKey(['status', 'статус заявки', 'статус']) || keys[11];
+
+      const rawDate = row[recDateKey] ? String(row[recDateKey]).trim() : "";
+      let year = "Не вказано";
+      const matchYear = rawDate.match(/\b(20\d\d|19\d\d)\b/);
+      if (matchYear) year = matchYear[0];
+
+      let benefit = "Ні";
+      const rawBenefit = String(row[benefitKey] || "").toLowerCase();
+      if (rawBenefit.includes("так") || rawBenefit.includes("true") || rawBenefit.includes("1") || rawBenefit.includes("пільг")) {
+        benefit = "Так";
+      }
+
+      const gVal = Number(row[genderKey]);
+      let genderLabel = "Не вказано";
+      if (gVal === 1) genderLabel = "Хлопчик";
+      else if (gVal === 2) genderLabel = "Дівчинка";
+
+      return {
+        uid: (row[uidKey] || `LV-REC-${index + 1}`).toString().trim(),
+        receivedDate: rawDate || "—",
+        year: year,
+        priority: (row[prioKey] || "1").toString().trim(),
+        number: Number(row[numKey]) || (index + 1),
+        gender: genderLabel,
+        birthDate: row[birthKey] ? String(row[birthKey]).trim() : "—",
+        ageGroup: (row[ageGroupKey] || "Молодша група").toString().trim(),
+        benefitType: benefit,
+        institutionName: (row[instNameKey] || "ЗДО Львова").toString().trim(),
+        institutionId: (row[instIdKey] || "—").toString().trim(),
+        dateProvided: Number(row[dateProvKey]) || 0,
+        status: (row[statusKey] || "У черзі").toString().trim()
+      };
+    }
+
+    function populateFilters() {
+      const statuses = [...new Set(dataset.map(d => d.status))].filter(Boolean).sort();
+      const stSelect = document.getElementById('statusFilter');
+      stSelect.innerHTML = '<option value="all">Усі статуси</option>';
+      statuses.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s; opt.textContent = s;
+        stSelect.appendChild(opt);
+      });
+
+      const groups = [...new Set(dataset.map(d => d.ageGroup))].filter(Boolean).sort();
+      const grSelect = document.getElementById('ageGroupFilter');
+      grSelect.innerHTML = '<option value="all">Усі вікові групи</option>';
+      groups.forEach(g => {
+        const opt = document.createElement('option');
+        opt.value = g; opt.textContent = g;
+        grSelect.appendChild(opt);
+      });
+    }
+
+    function applyFilters() {
+      const q = document.getElementById('searchInput').value.toLowerCase().trim();
+      const status = document.getElementById('statusFilter').value;
+      const ageGroup = document.getElementById('ageGroupFilter').value;
+      const benefit = document.getElementById('benefitFilter').value;
+
+      filteredData = dataset.filter(item => {
+        const matchQ = item.uid.toLowerCase().includes(q) ||
+                       item.institutionName.toLowerCase().includes(q) ||
+                       item.institutionId.toLowerCase().includes(q);
+        const matchStatus = status === 'all' || item.status === status;
+        const matchAge = ageGroup === 'all' || item.ageGroup === ageGroup;
+        const matchBenefit = benefit === 'all' || item.benefitType === benefit;
+        return matchQ && matchStatus && matchAge && matchBenefit;
+      });
+
+      currentPage = 1;
+      updateKPIs();
+      renderTable();
+      renderCharts();
+    }
+
+    function updateKPIs() {
+      const total = filteredData.length;
+      document.getElementById('statTotal').innerText = total;
+
+      const benefitsCount = filteredData.filter(d => d.benefitType === "Так").length;
+      document.getElementById('statBenefits').innerText = benefitsCount;
+      const benefitPct = total > 0 ? Math.round((benefitsCount / total) * 100) : 0;
+      document.getElementById('statBenefitPercent').innerText = `${benefitPct}% від поточної вибірки`;
+
+      const enrolledCount = filteredData.filter(d => d.status.toLowerCase().includes("зараховано") && !d.status.toLowerCase().includes("не")).length;
+      document.getElementById('statEnrolled').innerText = enrolledCount;
+
+      const p1Count = filteredData.filter(d => d.priority === "1").length;
+      document.getElementById('statPriorityOne').innerText = p1Count;
+    }
+
+    function renderTable() {
+      const tbody = document.getElementById('tableBody');
+      tbody.innerHTML = "";
+
+      if (filteredData.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="9" class="py-8 text-center text-slate-400">Не знайдено жодної заявки за вказаними критеріями</td></tr>`;
+        document.getElementById('pageInfo').innerText = "0 з 0";
+        return;
+      }
+
+      const start = (currentPage - 1) * pageSize;
+      const paginated = filteredData.slice(start, start + pageSize);
+
+      paginated.forEach(row => {
+        let statusBadge = "bg-amber-50 dark:bg-amber-950/50 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-800";
+        const lowStatus = row.status.toLowerCase();
+        if (lowStatus.includes("зараховано") && !lowStatus.includes("не")) {
+          statusBadge = "bg-emerald-50 dark:bg-emerald-950/50 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800";
+        } else if (lowStatus.includes("не зараховано")) {
+          statusBadge = "bg-rose-50 dark:bg-rose-950/50 text-rose-600 dark:text-rose-400 border-rose-200 dark:border-rose-800";
+        }
+
+        const tr = document.createElement('tr');
+        tr.className = "hover:bg-slate-50 dark:hover:bg-slate-750/50 transition border-b border-slate-100 dark:border-slate-700/50";
+        tr.innerHTML = `
+          <td class="py-3 px-4 font-mono font-bold text-slate-900 dark:text-white">${row.uid}</td>
+          <td class="py-3 px-4">
+            <div class="font-medium text-slate-800 dark:text-slate-100">${row.institutionName}</div>
+            <div class="text-[11px] text-slate-400 font-mono">ЄДРПОУ ${row.institutionId}</div>
+          </td>
+          <td class="py-3 px-4 text-center">
+            <span class="inline-flex items-center justify-center w-6 h-6 rounded-full font-bold text-xs ${row.priority === '1' ? 'bg-brand-100 dark:bg-brand-950 text-brand-700 dark:text-brand-300' : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-400'}">
+              ${row.priority}
+            </span>
+          </td>
+          <td class="py-3 px-4 text-center font-bold text-slate-700 dark:text-slate-200">#${row.number}</td>
+          <td class="py-3 px-4">
+            <div class="font-medium">${row.ageGroup}</div>
+            <div class="text-[11px] text-slate-400">Рік народження: ${row.birthDate}</div>
+          </td>
+          <td class="py-3 px-4 text-center text-slate-500 dark:text-slate-400">${row.gender}</td>
+          <td class="py-3 px-4 text-center">
+            <span class="px-2 py-0.5 rounded text-xs font-semibold ${row.benefitType === 'Так' ? 'bg-indigo-100 dark:bg-indigo-950/70 text-indigo-700 dark:text-indigo-300' : 'text-slate-400'}">
+              ${row.benefitType}
+            </span>
+          </td>
+          <td class="py-3 px-4 text-xs text-slate-500 dark:text-slate-400 font-mono">${row.receivedDate}</td>
+          <td class="py-3 px-4 text-center">
+            <span class="inline-block px-2.5 py-0.5 rounded-full text-xs font-semibold border ${statusBadge}">
+              ${row.status}
+            </span>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      const total = filteredData.length;
+      const end = Math.min(start + pageSize, total);
+      document.getElementById('pageInfo').innerText = `Показано ${start + 1}-${end} із ${total}`;
+      document.getElementById('prevBtn').disabled = currentPage === 1;
+      document.getElementById('nextBtn').disabled = end >= total;
+    }
+
+    function renderCharts() {
+      const isDark = htmlEl.classList.contains('dark');
+      const textColor = isDark ? '#94a3b8' : '#64748b';
+      const gridColor = isDark ? '#334155' : '#e2e8f0';
+
+      // 1. Графік вікових груп
+      const groupCounts = {};
+      filteredData.forEach(d => {
+        groupCounts[d.ageGroup] = (groupCounts[d.ageGroup] || 0) + 1;
+      });
+      const groupLabels = Object.keys(groupCounts);
+      const groupVals = groupLabels.map(k => groupCounts[k]);
+
+      if (ageGroupChartInstance) ageGroupChartInstance.destroy();
+      const ctx1 = document.getElementById('ageGroupChart').getContext('2d');
+      ageGroupChartInstance = new Chart(ctx1, {
+        type: 'doughnut',
+        data: {
+          labels: groupLabels.length ? groupLabels : ['Немає даних'],
+          datasets: [{
+            data: groupVals.length ? groupVals : [1],
+            backgroundColor: ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#ec4899'],
+            borderWidth: 2,
+            borderColor: isDark ? '#1e293b' : '#ffffff'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              position: 'bottom',
+              labels: { color: textColor, boxWidth: 12, padding: 12, font: { size: 11 } }
+            }
+          }
+        }
+      });
+
+      // 2. Графік динаміки за роками
+      const yearCounts = {};
+      filteredData.forEach(d => {
+        const yr = d.year !== "undefined" && d.year ? d.year : "Не вказано";
+        yearCounts[yr] = (yearCounts[yr] || 0) + 1;
+      });
+
+      const sortedYears = Object.keys(yearCounts).sort((a, b) => a.localeCompare(b));
+      const yearValues = sortedYears.map(y => yearCounts[y]);
+
+      if (timelineChartInstance) timelineChartInstance.destroy();
+      const ctx2 = document.getElementById('timelineChart').getContext('2d');
+      timelineChartInstance = new Chart(ctx2, {
+        type: 'bar',
+        data: {
+          labels: sortedYears.length ? sortedYears : ['2023', '2024'],
+          datasets: [{
+            label: 'Подано заяв',
+            data: yearValues.length ? yearValues : [0, 0],
+            backgroundColor: '#4f46e5',
+            hoverBackgroundColor: '#6366f1',
+            borderRadius: 8,
+            maxBarThickness: 48
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0, color: textColor },
+              grid: { color: gridColor }
+            },
+            x: {
+              ticks: { color: textColor },
+              grid: { display: false }
+            }
+          },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              callbacks: {
+                title: (items) => `Рік подання: ${items[0].label}`,
+                label: (item) => `Заявок: ${item.formattedValue}`
+              }
+            }
+          }
+        }
+      });
+    }
+
+    function initDashboard() {
+      populateFilters();
+      applyFilters();
+      if (window.lucide) lucide.createIcons();
+    }
+
+    const guideModal = document.getElementById('guideModal');
+    const cabinetModal = document.getElementById('cabinetModal');
+
+    document.getElementById('openGuideBtn').addEventListener('click', () => guideModal.classList.remove('hidden'));
+    document.getElementById('closeGuideBtn').addEventListener('click', () => guideModal.classList.add('hidden'));
+    document.getElementById('okGuideBtn').addEventListener('click', () => guideModal.classList.add('hidden'));
+
+    document.getElementById('openCabinetBtn').addEventListener('click', () => {
+      cabinetModal.classList.remove('hidden');
+      renderTrackedList();
+    });
+    document.getElementById('closeCabinetBtn').addEventListener('click', () => cabinetModal.classList.add('hidden'));
+
+    let trackedUids = JSON.parse(localStorage.getItem('leosadok_tracked_uids') || '["LV-2024-0015", "LV-2023-0108", "LV-2025-0024"]');
+
+    function renderTrackedList() {
+      const container = document.getElementById('trackedList');
+      container.innerHTML = "";
+
+      if (trackedUids.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400 py-3 text-center">Немає закріплених заявок</p>`;
+        return;
+      }
+
+      trackedUids.forEach((uid, idx) => {
+        const item = dataset.find(d => d.uid.toLowerCase() === uid.toLowerCase()) || {
+          uid: uid,
+          institutionName: "Запит у процесі",
+          number: "—",
+          priority: "1",
+          ageGroup: "—",
+          status: "Очікує синхронізації"
+        };
+
+        const card = document.createElement('div');
+        card.className = "p-3.5 bg-slate-50 dark:bg-slate-900/70 border border-slate-200 dark:border-slate-700 rounded-xl space-y-2";
+        card.innerHTML = `
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="font-mono font-bold text-xs text-brand-600 dark:text-brand-400">${item.uid}</span>
+              <h5 class="font-semibold text-sm text-slate-900 dark:text-white">${item.institutionName}</h5>
+            </div>
+            <button onclick="removeTrackedUid(${idx})" class="text-slate-400 hover:text-rose-500 p-1 transition">
+              <i data-lucide="trash-2" class="w-4 h-4"></i>
+            </button>
+          </div>
+          <div class="flex items-center justify-between text-xs pt-1 border-t border-slate-200 dark:border-slate-700/60">
+            <span class="text-slate-500">Пріоритет: <b>${item.priority}</b> | Група: <b>${item.ageGroup}</b></span>
+            <span class="font-bold text-slate-900 dark:text-white">Позиція: #${item.number}</span>
+          </div>
+          <div class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Статус: ${item.status}</div>
+        `;
+        container.appendChild(card);
+      });
+      if (window.lucide) lucide.createIcons();
+    }
+
+    window.removeTrackedUid = function(idx) {
+      trackedUids.splice(idx, 1);
+      localStorage.setItem('leosadok_tracked_uids', JSON.stringify(trackedUids));
+      renderTrackedList();
+    };
+
+    document.getElementById('childLinkCard').addEventListener('submit', (e) => {
+      e.preventDefault();
+      const val = document.getElementById('trackUidInput').value.trim();
+      if (!val) return;
+
+      if (!trackedUids.includes(val)) {
+        trackedUids.push(val);
+        localStorage.setItem('leosadok_tracked_uids', JSON.stringify(trackedUids));
+      }
+      document.getElementById('trackUidInput').value = "";
+      renderTrackedList();
+    });
+
+    themeToggleBtn.addEventListener('click', () => {
+      const isCurrentlyDark = htmlEl.classList.contains('dark');
+      applyTheme(!isCurrentlyDark);
+    });
+
+    document.getElementById('searchInput').addEventListener('input', applyFilters);
+    document.getElementById('statusFilter').addEventListener('change', applyFilters);
+    document.getElementById('ageGroupFilter').addEventListener('change', applyFilters);
+    document.getElementById('benefitFilter').addEventListener('change', applyFilters);
+
+    document.getElementById('prevBtn').addEventListener('click', () => {
+      if (currentPage > 1) { currentPage--; renderTable(); }
+    });
+    document.getElementById('nextBtn').addEventListener('click', () => {
+      if (currentPage * pageSize < filteredData.length) { currentPage++; renderTable(); }
+    });
+
+    document.getElementById('csvFileInput').addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      Papa.parse(file, {
+        header: true,
+        skipEmptyLines: true,
+        complete: function(results) {
+          if (results.data && results.data.length > 0) {
+            dataset = results.data.map((row, i) => normalizeRow(row, i));
+            initDashboard();
+          }
+        }
+      });
+    });
+
+    document.addEventListener('DOMContentLoaded', () => {
+      dataset = defaultData.map((row, i) => normalizeRow(row, i));
+      const savedTheme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      applyTheme(savedTheme === 'dark');
+      initDashboard();
+    });
+  </script>
+</body>
+</html>
